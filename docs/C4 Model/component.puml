@@ -1,0 +1,57 @@
+@startuml E-commerce Component Diagram
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+LAYOUT_LANDSCAPE()
+LAYOUT_WITH_LEGEND()
+
+title Component Diagram - E-commerce (Fase 1)
+
+Person(customer, "Cliente", "Usuário que realiza compras")
+
+Container_Boundary(api, "E-commerce API") {
+    Component(orderController, "Order Controller", "Express.js", "Gerencia requisições HTTP de pedidos")
+    Component(orderService, "Order Service", "TypeScript", "Orquestra criação de pedidos de forma síncrona")
+    Component(paymentService, "Payment Service", "TypeScript", "Processa pagamentos (chamada síncrona)")
+    Component(inventoryService, "Inventory Service", "TypeScript", "Gerencia estoque (chamada síncrona)")
+
+    Component(creditGateway, "Credit Gateway", "TypeScript", "Gateway fake de pagamento com cartão de crédito")
+    Component(debitGateway, "Debit Gateway", "TypeScript", "Gateway fake de pagamento com cartão de débito")
+
+    Component(orderRepo, "Order Repository", "TypeScript", "Acesso a dados de pedidos")
+    Component(paymentRepo, "Payment Repository", "TypeScript", "Acesso a dados de pagamentos")
+    Component(inventoryRepo, "Inventory Repository", "TypeScript", "Acesso a dados de estoque")
+
+    Component(eventPublisher, "Event Publisher", "TypeScript", "Publica eventos de domínio no RabbitMQ")
+
+    ComponentDb(database, "SQLite Database", "SQLite", "Banco de dados único compartilhado")
+}
+
+ComponentQueue(rabbitmq, "RabbitMQ", "Message Broker", "Fila de eventos do sistema")
+
+System_Ext(auditSystem, "Audit System", "Sistema de auditoria que consome todos os eventos do RabbitMQ")
+
+Rel(customer, orderController, "Cria pedido", "HTTP/REST")
+
+Rel(orderController, orderService, "Usa")
+Rel(orderService, paymentService, "Usa", "**Síncrono**")
+Rel(orderService, inventoryService, "Usa", "**Síncrono**")
+
+Rel(paymentService, creditGateway, "Usa")
+Rel(paymentService, debitGateway, "Usa")
+
+Rel(orderService, orderRepo, "Usa")
+Rel(paymentService, paymentRepo, "Usa")
+Rel(inventoryService, inventoryRepo, "Usa")
+
+Rel(orderRepo, database, "Lê e escreve", "better-sqlite3")
+Rel(paymentRepo, database, "Lê e escreve", "better-sqlite3")
+Rel(inventoryRepo, database, "Lê e escreve", "better-sqlite3")
+
+Rel(orderService, eventPublisher, "Publica OrderCreated")
+Rel(paymentService, eventPublisher, "Publica PaymentProcessed")
+Rel(inventoryService, eventPublisher, "Publica StockReserved/StockReleased")
+
+Rel(eventPublisher, rabbitmq, "Publica eventos", "AMQP")
+Rel(rabbitmq, auditSystem, "Entrega eventos para auditoria", "AMQP/Consumer")
+
+SHOW_LEGEND()

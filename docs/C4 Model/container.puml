@@ -1,0 +1,32 @@
+@startuml E-commerce Container Diagram
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+LAYOUT_WITH_LEGEND()
+
+title Container Diagram - E-commerce Platform (Fase 1)
+
+Person(customer, "Cliente", "Usuário que realiza compras online")
+
+System_Boundary(ecommerce, "E-commerce System") {
+    Container(api, "API Application", "Node.js, Express, TypeScript", "Processa requisições HTTP, gerencia pedidos, pagamentos e estoque")
+    ContainerDb(database, "Database", "SQLite", "Armazena pedidos, pagamentos e inventário")
+    ContainerQueue(rabbitmq, "Message Broker", "RabbitMQ", "Gerencia filas de eventos para auditoria e integração assíncrona")
+}
+
+System_Boundary(audit_context, "Audit Bounded Context") {
+    Container(audit_system, "Audit System", "Node.js, TypeScript", "Consome eventos de auditoria e armazena registros completos de todas as ações do sistema")
+    ContainerDb(audit_db, "Audit Database", "SQLite", "Armazena logs de auditoria imutáveis de todos os eventos")
+}
+
+System_Ext(credit_gateway, "Credit Gateway", "Gateway externo de processamento de pagamentos com cartão de crédito")
+System_Ext(debit_gateway, "Debit Gateway", "Gateway externo de processamento de pagamentos com cartão de débito")
+
+Rel(customer, api, "Cria pedidos, consulta status", "HTTP/REST")
+Rel(api, database, "Lê e escreve dados", "SQL/better-sqlite3")
+Rel(api, credit_gateway, "Processa pagamentos de crédito", "HTTPS/API")
+Rel(api, debit_gateway, "Processa pagamentos de débito", "HTTPS/API")
+Rel(api, rabbitmq, "Publica eventos do sistema (OrderCreated, PaymentProcessed, StockReserved, etc.)", "AMQP")
+Rel(rabbitmq, audit_system, "Entrega eventos para auditoria", "AMQP/Consumer")
+Rel(audit_system, audit_db, "Persiste logs de auditoria", "SQL")
+
+@enduml
